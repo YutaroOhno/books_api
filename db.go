@@ -9,6 +9,20 @@ import (
 
 var db = dynamodb.New(session.New(), aws.NewConfig().WithRegion("ap-northeast-1"))
 
+func getItems() (*dynamodb.ScanOutput, error) {
+  result, err := db.Scan(&dynamodb.ScanInput{
+    TableName: aws.String("Books"),
+  })
+  if err != nil {
+    return nil, err
+  }
+  if result.Items == nil {
+      return nil, nil
+  }
+
+  return result, nil
+}
+
 func getItem(isbn string) (*book, error) {
     input := &dynamodb.GetItemInput{
         TableName: aws.String("Books"),
@@ -55,4 +69,22 @@ func putItem(bk *book) error {
 
     _, err := db.PutItem(input)
     return err
+}
+
+func deleteItem(isbn string) (error) {
+    params := &dynamodb.DeleteItemInput{
+        TableName: aws.String("Books"),
+        Key: map[string]*dynamodb.AttributeValue{
+            "ISBN": {
+                S: aws.String(isbn),
+            },
+        },
+    }
+
+    _, err := db.DeleteItem(params)
+    if err != nil {
+        return err
+    }
+
+    return nil
 }

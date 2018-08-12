@@ -22,14 +22,36 @@ type book struct {
 }
 
 func router(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-    switch req.HTTPMethod {
+  switch req.HTTPMethod {
     case "GET":
+      if(req.QueryStringParameters == nil) {
+        return index(req)
+      } else {
         return show(req)
+      }
     case "POST":
         return create(req)
+    case "DELETE":
+        return delete(req)
     default:
         return clientError(http.StatusMethodNotAllowed)
     }
+}
+
+func index(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+  bks, err := getItems()
+  if err != nil {
+      return serverError(err)
+  }
+  js, err := json.Marshal(bks)
+  if err != nil {
+      return serverError(err)
+  }
+
+  return events.APIGatewayProxyResponse{
+      StatusCode: http.StatusOK,
+      Body:       string(js),
+  }, nil
 }
 
 func show(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -86,6 +108,22 @@ func create(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, 
         StatusCode: 201,
         Headers:    map[string]string{"Location": fmt.Sprintf("/books?isbn=%s", bk.ISBN)},
     }, nil
+}
+
+func delete(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+  isbn := req.QueryStringParameters["isbn"]
+  if !isbnRegexp.MatchString(isbn) {
+      return clientError(http.StatusBadRequest)
+  }
+
+  err := deleteItem(isbn)
+  if err != nil {
+      return serverError(err)
+  }
+
+  return events.APIGatewayProxyResponse{
+      StatusCode: http.StatusOK,
+  }, nil
 }
 
 func serverError(err error) (events.APIGatewayProxyResponse, error) {
